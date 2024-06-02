@@ -131,7 +131,7 @@ endif
 else ifeq ($(platform), osx)
    TARGET  := $(TARGET_NAME)_libretro.dylib
    fpic    := -fPIC
-   SHARED  := -dynamiclib
+   SHARED  := -dynamiclib -Wl,-exported_symbols_list,libretro.osx.def
    LDFLAGS += $(PTHREAD_FLAGS)
    FLAGS   += $(PTHREAD_FLAGS)
    ifeq ($(arch),ppc)
@@ -189,7 +189,7 @@ else ifneq (,$(findstring ios,$(platform)))
    endif
    HAVE_LIGHTREC = 0
    LDFLAGS += $(IPHONEMINVER)
-   FLAGS   += $(IPHONEMINVER) -DHAVE_UNISTD_H
+   FLAGS   += $(IPHONEMINVER) -DHAVE_UNISTD_H -DIOS=1
    CC      += $(IPHONEMINVER)
    CXX     += $(IPHONEMINVER)
 
@@ -199,11 +199,19 @@ else ifeq ($(platform), tvos-arm64)
    fpic := -fPIC
    SHARED := -dynamiclib
    HAVE_LIGHTREC = 0
-   FLAGS += -DHAVE_UNISTD_H
+   FLAGS += -DHAVE_UNISTD_H -DIOS=1 -DTVOS=1
 
-ifeq ($(IOSSDK),)
-   IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
-endif
+   ifeq ($(IOSSDK),)
+      IOSSDK := $(shell xcrun -sdk appletvos -show-sdk-path)
+   endif
+   ifeq ($(HAVE_OPENGL),1)
+      GL_LIB := -framework OpenGLES
+      GLES = 1
+      GLES3 = 1
+   endif
+
+   CC = cc -arch arm64 -isysroot $(IOSSDK)
+   CXX = c++ -arch arm64 -isysroot $(IOSSDK)
 
 # QNX
 else ifeq ($(platform), qnx)
