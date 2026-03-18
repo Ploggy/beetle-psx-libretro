@@ -34,6 +34,61 @@
 
 #define RLSB 		MDFNSTATE_RLSB	/* 0x80000000 */
 
+#ifdef MSB_FIRST
+/* Endian helper functions needed on big-endian platforms (e.g. WiiU).
+ * Defined here because state.c is compiled as C and cannot include
+ * the C++ mednafen-endian.h directly. */
+static void FlipByteOrder(uint8_t *src, uint32_t bytesize)
+{
+   uint8_t *start = src;
+   uint8_t *end   = src + bytesize - 1;
+   while (start < end)
+   {
+      uint8_t tmp = *start;
+      *start = *end;
+      *end   = tmp;
+      start++;
+      end--;
+   }
+}
+static void Endian_A16_Swap(void *src, uint32_t nelements)
+{
+   uint32_t i;
+   uint8_t *p = (uint8_t *)src;
+   for (i = 0; i < nelements; i++)
+   {
+      uint8_t tmp  = p[i * 2];
+      p[i * 2]     = p[i * 2 + 1];
+      p[i * 2 + 1] = tmp;
+   }
+}
+static void Endian_A32_Swap(void *src, uint32_t nelements)
+{
+   uint32_t i;
+   uint8_t *p = (uint8_t *)src;
+   for (i = 0; i < nelements; i++)
+   {
+      uint8_t t0 = p[i*4];   uint8_t t1 = p[i*4+1];
+      p[i*4]     = p[i*4+3]; p[i*4+1]   = p[i*4+2];
+      p[i*4+2]   = t1;       p[i*4+3]   = t0;
+   }
+}
+static void Endian_A64_Swap(void *src, uint32_t nelements)
+{
+   uint32_t i; int z;
+   uint8_t *p = (uint8_t *)src;
+   for (i = 0; i < nelements; i++)
+   {
+      uint8_t *b = &p[i * 8];
+      for (z = 0; z < 4; z++) { uint8_t t = b[z]; b[z] = b[7-z]; b[7-z] = t; }
+   }
+}
+/* LE_to_NE: on big-endian, little-endian data needs swapping to become native */
+static void Endian_A16_LE_to_NE(void *src, uint32_t n) { Endian_A16_Swap(src, n); }
+static void Endian_A32_LE_to_NE(void *src, uint32_t n) { Endian_A32_Swap(src, n); }
+static void Endian_A64_LE_to_NE(void *src, uint32_t n) { Endian_A64_Swap(src, n); }
+#endif /* MSB_FIRST */
+
 /* Forward declaration */
 int StateAction(StateMem *sm, int load, int data_only);
 

@@ -73,6 +73,21 @@ void Endian_A64_Swap(void *src, uint32 nelements)
  }
 }
 
+void FlipByteOrder(uint8_t *src, uint32_t bytesize)
+{
+ uint8_t *start = src;
+ uint8_t *end   = src + bytesize - 1;
+
+ while(start < end)
+ {
+  uint8_t tmp = *start;
+  *start = *end;
+  *end   = tmp;
+  start++;
+  end--;
+ }
+}
+
 void Endian_A16_NE_LE(void *src, uint32 nelements)
 {
  #ifdef MSB_FIRST

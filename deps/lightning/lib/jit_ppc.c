@@ -18,6 +18,10 @@
  */
 #define CHECK_POPCNTB	0
 
+#if defined(__wiiu__)
+#  include <coreinit/cache.h>
+#endif
+
 #if CHECK_POPCNTB
 #include <signal.h>
 #include <setjmp.h>
@@ -2306,7 +2310,14 @@ _emit_code(jit_state_t *_jit)
 void
 jit_flush(void *fptr, void *tptr)
 {
-#if defined(__GNUC__)
+#if defined(__wiiu__)
+    /* WiiU PowerPC: must flush d-cache then invalidate i-cache explicitly.
+     * __clear_cache() is a no-op on bare-metal PPC - the CPU has separate
+     * d-cache and i-cache so without this the CPU executes stale/garbage code. */
+    size_t size = (char *)tptr - (char *)fptr;
+    DCFlushRange(fptr, size);
+    ICInvalidateRange(fptr, size);
+#elif defined(__GNUC__)
     jit_word_t		f, t, s;
 
     s = sysconf(_SC_PAGE_SIZE);

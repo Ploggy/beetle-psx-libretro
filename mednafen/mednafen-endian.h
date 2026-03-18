@@ -26,6 +26,10 @@ void Endian_A16_Swap(void *src, uint32 nelements);
 void Endian_A32_Swap(void *src, uint32 nelements);
 void Endian_A64_Swap(void *src, uint32 nelements);
 
+/* Reverse byte order of an arbitrary-length byte array in-place.
+ * Used by state.c for RLSB-flagged fields on big-endian platforms. */
+void FlipByteOrder(uint8_t *src, uint32_t bytesize);
+
 void Endian_A16_NE_LE(void *src, uint32 nelements);
 void Endian_A32_NE_LE(void *src, uint32 nelements);
 void Endian_A64_NE_LE(void *src, uint32 nelements);

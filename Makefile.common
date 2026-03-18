@@ -171,7 +171,9 @@ endif
 
 ifeq ($(HAVE_LIGHTREC), 1)
    FLAGS += -DHAVE_LIGHTREC
+   ifneq ($(platform), wiiu)
    FLAGS += -DHAVE_MMAP
+   endif
 
    ifeq ($(LIGHTREC_LOG_LEVEL),)
        FLAGS += -DLOG_LEVEL=3 \

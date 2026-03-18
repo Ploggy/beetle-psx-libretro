@@ -3688,6 +3688,14 @@ int PS_CPU::lightrec_plugin_init()
 		lightrec_map[PSX_MAP_MIRROR1].address = psxM + 0x200000;
 		lightrec_map[PSX_MAP_MIRROR2].address = psxM + 0x400000;
 		lightrec_map[PSX_MAP_MIRROR3].address = psxM + 0x600000;
+#ifdef __wiiu__
+		/* WiiU: psx_mem was allocated as 4x RAM_SIZE contiguous block.
+		 * PSX mirrors are aliases of the same 2MB RAM, so copy initial
+		 * content to each mirror region. DMA invalidation keeps them in sync. */
+		memcpy(psxM + 0x200000, psxM, 0x200000);
+		memcpy(psxM + 0x400000, psxM, 0x200000);
+		memcpy(psxM + 0x600000, psxM, 0x200000);
+#endif
 	}
 
 	lightrec_map[PSX_MAP_BIOS].address = psxR;

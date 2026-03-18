@@ -38,7 +38,9 @@ retro_input_state_t dbg_input_state_cb = 0;
 
 #ifdef HAVE_LIGHTREC
 #include <lightrec-config.h>
+#if !defined(__wiiu__) && !defined(HAVE_WIN_SHM)
 #include <sys/mman.h>
+#endif
 
 #ifdef HAVE_ASHMEM
 #include <sys/ioctl.h>
@@ -1767,6 +1769,21 @@ static void * mmap_huge(void *addr, size_t length, int prot, int flags,
 #define MFAILED MAP_FAILED
 #define NUM_MEM 4
 #define MEMFDTYPE int
+#elif defined(__wiiu__)
+/* WiiU: use libmappedmemory ONLY for the JIT code buffer (needs execute permission).
+ * All other buffers (RAM, BIOS, scratch) use plain malloc - they are data, not code. */
+#include <memory/mappedmemory.h>
+static inline void* wiiu_map(size_t size)        { return malloc(size); }
+static inline void  wiiu_unmap(void *addr, size_t size) { (void)size; free(addr); }
+static inline void* wiiu_map_code(size_t size)   { return MEMAllocFromMappedMemory(size); }
+static inline void  wiiu_unmap_code(void *addr, size_t size) { (void)size; MEMFreeToMappedMemory(addr); }
+#define MAP(addr, size, fd, offset)      wiiu_map(size)
+#define MAP_SHM(addr, size, fd, offset)  wiiu_map(size)
+#define MAP_CODE(addr, size, fd, offset) wiiu_map_code(size)
+#define UNMAP(addr, size)                wiiu_unmap(addr, size)
+#define MFAILED NULL
+#define NUM_MEM 1
+#define MEMFDTYPE int
 #else
 #define MAP(addr, size, fd, offset) \
 	mmap(addr,size, PROT_READ | PROT_WRITE, \
@@ -1878,6 +1895,33 @@ err_unmap:
 int lightrec_init_mmap()
 {
 	int ret = 0;
+
+#ifdef __wiiu__
+	/* WiiU: data buffers use malloc, code buffer uses libmappedmemory (needs execute).
+	 * Allocate 4x RAM_SIZE so mirror addresses (psxM+0x200000/0x400000/0x600000)
+	 * point into valid memory - required for lightrec fast memory mode. */
+	psx_mem     = (uint8 *)wiiu_map(RAM_SIZE * 4);
+	psx_bios    = (uint8 *)wiiu_map(BIOS_SIZE);
+	psx_scratch = (uint8 *)wiiu_map(SCRATCH_SIZE);
+
+	if (!psx_mem || !psx_bios || !psx_scratch) {
+		log_cb(RETRO_LOG_ERROR, "WiiU: Failed to allocate lightrec data buffers\n");
+		wiiu_unmap(psx_mem, RAM_SIZE * 4);
+		wiiu_unmap(psx_bios, BIOS_SIZE);
+		wiiu_unmap(psx_scratch, SCRATCH_SIZE);
+		psx_mem = psx_bios = psx_scratch = NULL;
+		return 0;
+	}
+
+	if (ENABLE_CODE_BUFFER) {
+		lightrec_codebuffer = (uint8_t *)MEMAllocFromMappedMemory(LIGHTREC_CODEBUFFER_SIZE);
+		if (!lightrec_codebuffer)
+			log_cb(RETRO_LOG_WARN, "WiiU: Failed to allocate lightrec code buffer\n");
+	}
+
+	return 4; /* matches NUM_MEM on mmap platforms, enables fast memory in lightrec */
+
+#else /* !__wiiu__ */
 
 /* open memfd and set size */
 #ifdef HAVE_ASHMEM
@@ -1997,10 +2041,22 @@ close_return:
 	CloseHandle(memfd);
 #endif
 	return ret;
+
+#endif /* __wiiu__ */
 }
 
 void lightrec_free_mmap()
 {
+#ifdef __wiiu__
+	wiiu_unmap(psx_mem, RAM_SIZE * 4);
+	wiiu_unmap(psx_bios, BIOS_SIZE);
+	wiiu_unmap(psx_scratch, SCRATCH_SIZE);
+	if (lightrec_codebuffer) {
+		wiiu_unmap_code(lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE);
+		lightrec_codebuffer = NULL;
+	}
+	psx_mem = psx_bios = psx_scratch = NULL;
+#else
 	for (int i = 0; i < NUM_MEM; i++)
 		UNMAP((void *)((uintptr_t)psx_mem + i * RAM_SIZE), RAM_SIZE);
 
@@ -2014,6 +2070,7 @@ void lightrec_free_mmap()
 	/* android shared memory is not pinned by mmap, it dies on close */
 	close(memfd);
 #endif
+#endif /* !__wiiu__ */
 }
 #endif /* HAVE_LIGHTREC */
 

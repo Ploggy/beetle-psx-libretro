@@ -315,16 +315,29 @@ else ifneq (,$(filter $(platform),ngc wii))
 
 # Nintendo WiiU
 else ifeq ($(platform), wiiu)
+   WUMS_ROOT          := $(DEVKITPRO)/wums
+   WUT_ROOT           := $(DEVKITPRO)/wut
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC      = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    CXX     = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
    AR      = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
-   FLAGS  += -DGEKKO -mwup -mcpu=750 -meabi -mhard-float
-   FLAGS  += -U__INT32_TYPE__ -U __UINT32_TYPE__ -D__INT32_TYPE__=int
-   ENDIANNESS_DEFINES += -DMSB_FIRST
-   EXTRA_INCLUDES     := -Ideps
+   FLAGS  += -DGEKKO -mcpu=750 -meabi -mhard-float
+   FLAGS  += -DWIIU -ffunction-sections -fdata-sections -D__wiiu__ -D__wut__
+   # Prevent rthreads from trying to use libogc (GEKKO path) - WiiU uses WUT/pthreads
+   FLAGS  += -DHAVE_PTHREADS
+   ENDIANNESS_DEFINES += -DHW_WUP -DMSB_FIRST
+   # WUT headers (coreinit/cache.h etc.) and libmappedmemory
+   FLAGS   += -I$(WUT_ROOT)/include
+   FLAGS   += -I$(WUMS_ROOT)/include
+   LDFLAGS += -L$(WUMS_ROOT)/lib -lmappedmemory
+   LDFLAGS += -T$(WUMS_ROOT)/share/libmappedmemory.ld
+   EXTRA_INCLUDES     :=
    STATIC_LINKING = 1
-   NEED_THREADING = 0
+   HAVE_LIGHTREC = 1
+   NEED_THREADING = 1
+   THREADED_RECOMPILER = 1
+   # Do NOT set HAVE_SHM, HAVE_ASHMEM, or HAVE_WIN_SHM here
+   # HAVE_MMAP is intentionally NOT set - handled conditionally in Makefile.common
 
 # GCW0
 else ifeq ($(platform), gcw0)
