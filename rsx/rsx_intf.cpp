@@ -243,7 +243,9 @@ bool rsx_intf_open(bool is_pal, bool force_software)
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
       if ((preferred == RETRO_HW_CONTEXT_DUMMY ||
            preferred == RETRO_HW_CONTEXT_OPENGL ||
-           preferred == RETRO_HW_CONTEXT_OPENGL_CORE)
+           preferred == RETRO_HW_CONTEXT_OPENGL_CORE ||
+           preferred == RETRO_HW_CONTEXT_OPENGLES2 ||
+           preferred == RETRO_HW_CONTEXT_OPENGLES3)
           && rsx_gl_open(is_pal))
       {
          rsx_type       = RSX_OPENGL;

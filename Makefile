@@ -323,6 +323,7 @@ else ifeq ($(platform), wiiu)
    AR      = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
    FLAGS  += -DGEKKO -mcpu=750 -meabi -mhard-float
    FLAGS  += -DWIIU -ffunction-sections -fdata-sections -D__wiiu__ -D__wut__
+   FLAGS  += -DHAVE_OPENGL -DHAVE_OPENGLES -DHAVE_OPENGLES3
    # Prevent rthreads from trying to use libogc (GEKKO path) - WiiU uses WUT/pthreads
    FLAGS  += -DHAVE_PTHREADS
    ENDIANNESS_DEFINES += -DHW_WUP -DMSB_FIRST
@@ -338,6 +339,16 @@ else ifeq ($(platform), wiiu)
    THREADED_RECOMPILER = 1
    # Do NOT set HAVE_SHM, HAVE_ASHMEM, or HAVE_WIN_SHM here
    # HAVE_MMAP is intentionally NOT set - handled conditionally in Makefile.common
+
+   # Enable OpenGL ES3 hw renderer via ANGLE
+   HAVE_OPENGL = 1
+   GLES        = 1
+   GLES3       = 1
+   GL_LIB     := -lGLESv2
+   # ANGLE GLES3/EGL headers — copy angle/include into the core source tree
+   # or set ANGLE_INCLUDE to wherever your ANGLE headers live
+   ANGLE_INCLUDE ?= angle/include
+   FLAGS         += -I$(ANGLE_INCLUDE)
 
 # GCW0
 else ifeq ($(platform), gcw0)

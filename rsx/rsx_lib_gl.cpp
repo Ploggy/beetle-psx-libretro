@@ -718,7 +718,7 @@ static void DrawBuffer_map__no_bind(DrawBuffer<T> *drawbuffer)
          GL_MAP_WRITE_BIT |
          GL_MAP_INVALIDATE_RANGE_BIT);
 
-   assert(m != NULL);
+   if (!m) { log_cb(RETRO_LOG_ERROR, "glMapBufferRange returned NULL!\n"); return; };
 
    drawbuffer->map = reinterpret_cast<T *>(m);
 }
@@ -1766,6 +1766,10 @@ static void bind_libretro_framebuffer(GlRenderer *renderer)
 
    /* Bind the output framebuffer provided by the frontend */
    fbo = glsm_get_current_framebuffer();
+   static int _bind_count = 0; _bind_count++;
+   if (_bind_count <= 5 || _bind_count % 60 == 0)
+      log_cb(RETRO_LOG_INFO, "[bind_fb#%d] fbo=%u w=%u h=%u vp_w=%u vp_h=%u x=%d y=%d\n",
+             _bind_count, fbo, w, h, vp_w, vp_h, x, y);
    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
    glViewport((GLsizei) x, (GLsizei) y, (GLsizei) vp_w, (GLsizei) vp_h);
 }
@@ -2266,7 +2270,7 @@ extern void GPU_RestoreStateP3(void);
 
 static void gl_context_reset(void)
 {
-   log_cb(RETRO_LOG_DEBUG, "gl_context_reset called.\n");
+   log_cb(RETRO_LOG_INFO, "[gl_context_reset] CALLED\n");  // ADD THIS
    glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, NULL);
 
    if (!glsm_ctl(GLSM_CTL_STATE_SETUP, NULL))
@@ -2608,6 +2612,15 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
    if (!renderer)
       return;
 
+   static int _fin_count = 0; _fin_count++;
+   if (_fin_count <= 5 || _fin_count % 60 == 0)
+      log_cb(RETRO_LOG_INFO, "[finalize#%d] disp_res=%ux%u disp_off=%d frontend_res=%ux%u\n", _fin_count,
+          renderer->config.display_resolution[0],
+          renderer->config.display_resolution[1],
+          (int)renderer->config.display_off,
+          renderer->frontend_resolution[0],
+          renderer->frontend_resolution[1]);
+
    /* Draw pending commands */
    if (!DRAWBUFFER_IS_EMPTY(renderer->command_buffer))
       GlRenderer_draw(renderer);
@@ -2632,7 +2645,8 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
    glClearColor(0.0, 0.0, 0.0, 0.0);
    glClear(GL_COLOR_BUFFER_BIT);
 
-   if (!renderer->config.display_off || renderer->display_vram)
+   // if (!renderer->config.display_off || renderer->display_vram)
+      if (true)  // TEMP: always render for debugging
    {
       /* Bind 'fb_out' to texture unit 1 */
       glActiveTexture(GL_TEXTURE1);
@@ -2739,6 +2753,11 @@ void rsx_gl_finalize_frame(const void *fb, unsigned width,
    /* When using a hardware renderer we set the data pointer to
     * -1 to notify the frontend that the frame has been rendered
     * in the framebuffer. */
+   if (_fin_count <= 5 || _fin_count % 60 == 0)
+      log_cb(RETRO_LOG_INFO, "[finalize#%d] calling video_cb VALID %ux%u\n",
+             _fin_count,
+             renderer->frontend_resolution[0],
+             renderer->frontend_resolution[1]);
    video_cb(   RETRO_HW_FRAME_BUFFER_VALID,
          renderer->frontend_resolution[0],
          renderer->frontend_resolution[1], 0);
@@ -3484,6 +3503,7 @@ void rsx_gl_toggle_display(bool status)
    if (!renderer)
       return;
 
+   log_cb(RETRO_LOG_INFO, "[toggle_display] display_off = %d\n", (int)status);
    renderer->config.display_off = status;
 }
 
